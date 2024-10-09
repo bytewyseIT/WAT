@@ -32,7 +32,7 @@ script_info = {
     "name": "Workspace Administration Tool",
     "author": "Eric Ross",
     "version": "0.5",
-    "contact": "eric.ross@nuagelogistics.com"
+    "contact": "https://github.com/bytewyseIT"
 }
 
 # Load config file
@@ -59,6 +59,7 @@ def display_header():
 def menu():
     print("1. List all files owned by a user")
     print("2. Transfer ownership of files")
+    print("3. User lookup")
     print("0. Exit")
     choice = input("\nChoose an option: ")
     return choice
@@ -142,6 +143,19 @@ def transfer_ownership():
         command = ["gam", "user", email_current, "transfer", "drivefile", "csv", csv_file, "to", email_new]
         subprocess.run(command, shell=True)
 
+# Option 3: Lookup all information about a user
+def lookup_user_info():
+    first_name = input("Enter the user's First Name: ")
+    last_name = input("Enter the user's Last Name: ")
+    email = create_email(first_name, last_name)
+
+    # Build and execute the GAM command to look up all user info
+    command = ["gam", "info", "user", email]
+    
+    print(f"\nLooking up all information for {email}...\n")
+    subprocess.run(command, shell=True)
+
+
 # Main program loop
 if __name__ == "__main__":
     display_header()
@@ -151,6 +165,8 @@ if __name__ == "__main__":
             list_files()
         elif choice == "2":
             transfer_ownership()
+        elif choice == "3":
+            lookup_user_info()
         elif choice == "0":
             print("Exiting script...")
             break
