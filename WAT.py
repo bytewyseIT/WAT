@@ -57,6 +57,7 @@ def display_header():
  
  # Menu options
 def menu():
+    print("\n")
     print("1. List all files owned by a user")
     print("2. Transfer ownership of files")
     print("3. User lookup")
@@ -134,13 +135,13 @@ def transfer_ownership():
     if sub_choice == "1":
         file_id = input("Enter the File ID to transfer: ")
         # Build GAM command for single file transfer
-        command = ["gam", "user", email_current, "transfer", "file", file_id, "to", email_new]
+        command = ["gam", "user", email_current, "add", "drivefileacl", file_id, "user", email_new, "role", "owner"]
         subprocess.run(command, shell=True)
 
     elif sub_choice == "2":
-        csv_file = input("Enter the path to the CSV file with file IDs: ")
+        csv_file = input("Enter the name of the CSV containging the list of files to transfer ex. filelist.csv")
         # Build GAM command for bulk file transfer
-        command = ["gam", "user", email_current, "transfer", "drivefile", "csv", csv_file, "to", email_new]
+        command = ["gam", "csv", csv_file, "gam", "user", "~owner", "add", "drivefileacl", "~id", "user", "~newowner", "role", "owner"]
         subprocess.run(command, shell=True)
 
 # Option 3: Lookup all information about a user
