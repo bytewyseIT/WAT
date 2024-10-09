@@ -1,3 +1,9 @@
+# To Do
+# - Password Reset w/ forced password change on login ---- How to append ' ' around the new_pass variable to ensure special characters get used correctly in the password
+# - Create User w/ email settings and groups
+# - Update existing user w/ add to group, remove from group
+# - Deprovision user w/ transfer all files, remove all groups, reset password, forward users email (if desired) 
+
 import json
 import os
 import subprocess
@@ -61,6 +67,7 @@ def menu():
     print("1. List all files owned by a user")
     print("2. Transfer ownership of files")
     print("3. User lookup")
+    print("4. Reset Password")
     print("0. Exit")
     choice = input("\nChoose an option: ")
     return choice
@@ -124,22 +131,23 @@ def transfer_ownership():
     if sub_choice == "0":
             return  # Return to main menu
     
-    first_name_current = input("Enter the First Name of the current owner: ")
-    last_name_current = input("Enter the Last Name of the current owner: ")
-    email_current = create_email(first_name_current, last_name_current)
 
-    first_name_new = input("Enter the First Name of the new owner: ")
-    last_name_new = input("Enter the Last Name of the new owner: ")
-    email_new = create_email(first_name_new, last_name_new)
 
     if sub_choice == "1":
+        first_name_current = input("Enter the First Name of the current owner: ")
+        last_name_current = input("Enter the Last Name of the current owner: ")
+        email_current = create_email(first_name_current, last_name_current)
+
+        first_name_new = input("Enter the First Name of the new owner: ")
+        last_name_new = input("Enter the Last Name of the new owner: ")
+        mail_new = create_email(first_name_new, last_name_new)
         file_id = input("Enter the File ID to transfer: ")
         # Build GAM command for single file transfer
         command = ["gam", "user", email_current, "add", "drivefileacl", file_id, "user", email_new, "role", "owner"]
         subprocess.run(command, shell=True)
 
     elif sub_choice == "2":
-        csv_file = input("Enter the name of the CSV containging the list of files to transfer ex. filelist.csv")
+        csv_file = input("Enter the name of the CSV containging the list of files to transfer ex. filelist.csv: ")
         # Build GAM command for bulk file transfer
         command = ["gam", "csv", csv_file, "gam", "user", "~owner", "add", "drivefileacl", "~id", "user", "~newowner", "role", "owner"]
         subprocess.run(command, shell=True)
@@ -156,6 +164,20 @@ def lookup_user_info():
     print(f"\nLooking up all information for {email}...\n")
     subprocess.run(command, shell=True)
 
+# Option 4: Reset password 
+def password_reset():
+    first_name = input("Enter the user's First Name: ")
+    last_name = input("Enter the user's Last Name: ")
+    new_pass = input("Enter a temporary password for the user: ")
+    email = create_email(first_name, last_name)
+    
+    #Build and execute the GAM command to update password
+    command = ["gam", "update", "user", email, "password", new_pass, "changepassword", "on"]
+    
+    print(f"\nUser's password has been changed\n")
+    subprocess.run(command, shell=True)
+    
+
 
 # Main program loop
 if __name__ == "__main__":
@@ -168,6 +190,8 @@ if __name__ == "__main__":
             transfer_ownership()
         elif choice == "3":
             lookup_user_info()
+        elif choice == "4":
+            password_reset()
         elif choice == "0":
             print("Exiting script...")
             break
