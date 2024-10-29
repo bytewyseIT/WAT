@@ -1,12 +1,9 @@
-# To Do
-# - Password Reset w/ forced password change on login ---- How to append ' ' around the new_pass variable to ensure special characters get used correctly in the password
-# - Create User w/ email settings and groups
-# - Update existing user w/ add to group, remove from group
-# - Deprovision user w/ transfer all files, remove all groups, reset password, forward users email (if desired) 
-
 import json
 import os
 import subprocess
+import platform
+from prompt_toolkit import prompt
+from prompt_toolkit.completion import Completer, Completion
 
 # Define ANSI color codes
 RED = "\033[91m"
@@ -17,8 +14,7 @@ MAGENTA = "\033[95m"
 CYAN = "\033[96m"
 RESET = "\033[0m"
 
-# logo
-
+# ASCII logo
 ascii_logo = f""" 
 {CYAN} 
 888       888        d8888 88888888888 
@@ -28,12 +24,10 @@ ascii_logo = f"""
 888d88888b888    d88P  888     888     
 88888P Y88888   d88P   888     888     
 8888P   Y8888  d8888888888     888     
-888P     Y888 d88P     888     888  {RESET}   
-
+888P     Y888 d88P     888     888  {RESET}
 """
 
 # Script metadata
-
 script_info = {
     "name": "Workspace Administration Tool",
     "author": "Eric Ross",
@@ -42,26 +36,31 @@ script_info = {
 }
 
 # Load config file
-
 def load_config():
     with open("config.json", "r") as file:
         return json.load(file)
-        
+
 config = load_config()
+employees = config["employees"]
+
+class EmployeeCompleter(Completer):
+    """Custom completer for employee names using prompt_toolkit."""
+    def get_completions(self, document, complete_event):
+        text = document.text.lower()
+        for emp in employees:
+            if emp["name"].lower().startswith(text):
+                yield Completion(emp["name"], start_position=-len(text))
 
 # Display script information
-
 def display_header():
     print(ascii_logo)
     print(f"{script_info['name']} - v{script_info['version']}")
     print(f"Author: {script_info['author']}")
     print(f"Contact: {script_info['contact']}")
     print("\n--- MENU ---")
-    print("\n")
-    print("Select which action you would like to perform.")
-    print("\n")
- 
- # Menu options
+    print("\nSelect which action you would like to perform.\n")
+
+# Main menu options
 def menu():
     print("\n")
     print("1. List all files owned by a user")
@@ -71,113 +70,66 @@ def menu():
     print("0. Exit")
     choice = input("\nChoose an option: ")
     return choice
-    
-# Function to create email address
-def create_email(first, last):
-    email_format = config["email_format"]
-    domain = config["domain"]
-    return email_format.format(first=first.lower(), last=last.lower()) + "@" + domain
+
+# Get employee email by name
+def get_employee_email(name):
+    for emp in employees:
+        if emp["name"].lower() == name.lower():
+            return emp["email"]
+    print(f"No employee found with the name: {name}")
+    return None
+
+# Prompt user with tab completion
+def get_employee_name():
+    completer = EmployeeCompleter()
+    return prompt("Enter the user's name: ", completer=completer)
 
 # Option 1: List files owned by a user
 def list_files():
-    print("\n")
-    print("\nMenu:")
-    print("\n")
-    print("1. Export file list to Google Drive")
-    print("2. Export file list to CSV")
-    print("3. Display file list in console")
-    print("0. Return to main menu")
-    print("\n")
-    sub_choice = input("Choose an option: ")
-    
-    if sub_choice == "0":
-            return  # Return to main menu
-    
-    first_name = input("Enter the user's First Name: ")
-    last_name = input("Enter the user's Last Name: ")
-    email = create_email(first_name, last_name)
+    name = get_employee_name()
+    email = get_employee_email(name)
+    if not email:
+        return  # Return to main menu if no valid email found
 
-
-
-    # Build GAM command
     command = ["gam", "user", email, "show", "filelist"]
-
-    if sub_choice == "1":
-        # Export to Google Drive
-        destination = input("Press enter to export to your drive")
-        command.extend(["todrive"])
-    elif sub_choice == "2":
-        # Export to CSV
-        output_csv = input("Enter output name: ")
-        command.extend([">", output_csv])
-    elif sub_choice == "3":
-        # Display in console
-        command
-
-    # Execute command
     subprocess.run(command, shell=True)
 
 # Option 2: Transfer ownership of files
 def transfer_ownership():
-    print("\n")
-    print("\nMenu:")
-    print("\n")
-    print("1. Transfer ownership of a single file")
-    print("2. Bulk transfer files using a CSV list")
-    print("0. Return to main menu")
-    print("\n")
-    sub_choice = input("Choose an option: ")
-    
-    if sub_choice == "0":
-            return  # Return to main menu
-    
+    current_owner = get_employee_name()
+    new_owner = get_employee_name()
 
+    email_current = get_employee_email(current_owner)
+    email_new = get_employee_email(new_owner)
+    if not email_current or not email_new:
+        return
+
+    print("\nSub-options:")
+    print("1. Transfer a single file")
+    print("2. Bulk transfer using a CSV")
+    sub_choice = input("Choose an option: ")
 
     if sub_choice == "1":
-        first_name_current = input("Enter the First Name of the current owner: ")
-        last_name_current = input("Enter the Last Name of the current owner: ")
-        email_current = create_email(first_name_current, last_name_current)
-
-        first_name_new = input("Enter the First Name of the new owner: ")
-        last_name_new = input("Enter the Last Name of the new owner: ")
-        mail_new = create_email(first_name_new, last_name_new)
         file_id = input("Enter the File ID to transfer: ")
-        # Build GAM command for single file transfer
-        command = ["gam", "user", email_current, "add", "drivefileacl", file_id, "user", email_new, "role", "owner"]
-        subprocess.run(command, shell=True)
-
+        command = ["gam", "user", email_current, "transfer", "file", file_id, "to", email_new]
     elif sub_choice == "2":
-        csv_file = input("Enter the name of the CSV containging the list of files to transfer ex. filelist.csv: ")
-        # Build GAM command for bulk file transfer
-        command = ["gam", "csv", csv_file, "gam", "user", "~owner", "add", "drivefileacl", "~id", "user", "~newowner", "role", "owner"]
-        subprocess.run(command, shell=True)
+        csv_file = input("Enter the path to the CSV file: ")
+        command = ["gam", "user", email_current, "transfer", "drivefile", "csv", csv_file, "to", email_new]
+    else:
+        print("Invalid option. Returning to main menu.")
+        return
+
+    subprocess.run(command, shell=True)
 
 # Option 3: Lookup all information about a user
 def lookup_user_info():
-    first_name = input("Enter the user's First Name: ")
-    last_name = input("Enter the user's Last Name: ")
-    email = create_email(first_name, last_name)
+    name = get_employee_name()
+    email = get_employee_email(name)
+    if not email:
+        return
 
-    # Build and execute the GAM command to look up all user info
     command = ["gam", "info", "user", email]
-    
-    print(f"\nLooking up all information for {email}...\n")
     subprocess.run(command, shell=True)
-
-# Option 4: Reset password 
-def password_reset():
-    first_name = input("Enter the user's First Name: ")
-    last_name = input("Enter the user's Last Name: ")
-    new_pass = input("Enter a temporary password for the user: ")
-    email = create_email(first_name, last_name)
-    
-    #Build and execute the GAM command to update password
-    command = ["gam", "update", "user", email, "password", new_pass, "changepassword", "on"]
-    
-    print(f"\nUser's password has been changed\n")
-    subprocess.run(command, shell=True)
-    
-
 
 # Main program loop
 if __name__ == "__main__":
@@ -190,8 +142,6 @@ if __name__ == "__main__":
             transfer_ownership()
         elif choice == "3":
             lookup_user_info()
-        elif choice == "4":
-            password_reset()
         elif choice == "0":
             print("Exiting script...")
             break
